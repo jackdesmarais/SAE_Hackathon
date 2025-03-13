@@ -18,6 +18,7 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --top-k 8 \
                             --dict-size 1024 \
                             --batch-size 16384 \
+                            --n-batches-to-dead 600 \
                             --top-k-aux 256 \
                             --aux-penalty 0.125 
 
