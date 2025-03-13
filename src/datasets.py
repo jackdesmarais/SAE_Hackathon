@@ -331,7 +331,6 @@ class LiaoDatasetEmbedded(LiaoDataset):
         if self.embeddings is None and not self.preload_embeddings:
             x = self.ds.process_x(row)
             embedding = self.model.embed(x)
-            self.embeddings = embedding
         elif self.embeddings is None:
             dl = DataLoader(self.ds, batch_size=self.ds.batch_size, num_workers=self.num_workers)
             self.embeddings = torch.cat(self.trainer.predict(self.model, dl), dim=0)
