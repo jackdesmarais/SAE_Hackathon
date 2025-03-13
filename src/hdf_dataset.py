@@ -14,7 +14,7 @@ class HDF3DIterator:
         current_idx (int): Current position in iteration
     """
     
-    def __init__(self, file_path, dataset_name):
+    def __init__(self, file_path, dataset_name, transform=None):
         """Initialize the iterator.
         
         Args:
@@ -23,7 +23,7 @@ class HDF3DIterator:
         """
         self.file_path = file_path
         self.dataset_name = dataset_name
-        
+        self.transform = transform
         with h5py.File(file_path, 'r') as f:
             self.shape = f[dataset_name].shape
             if len(self.shape) != 3:
@@ -76,9 +76,13 @@ class HDF3DIterator:
                 
             if self.hdf_file is None:
                 with self:
-                    return self.hdf_file[self.dataset_name][i,j,:]
+                    x= self.hdf_file[self.dataset_name][i,j,:]
             else:
-                return self.hdf_file[self.dataset_name][i,j,:]
+                x= self.hdf_file[self.dataset_name][i,j,:]
+            
+            if self.transform is not None:
+                x = self.transform(x)
+            return x
             
     def __iter__(self):
         """Initialize iterator."""
@@ -114,3 +118,5 @@ class HDF3DIterator:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
+
+        
