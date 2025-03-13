@@ -31,13 +31,13 @@ conda activate architecture_search_env
 To train the vanilla, top-k, batch-topk, and jump SAEs on the SpliceAI model, run the following commands:
 
 ```bash
-sbatch SpliceAI_vanilla_SAE_training_job.sh
-sbatch SpliceAI_topk_SAE_training_job.sh
-sbatch SpliceAI_batchtopk_SAE_training_job.sh
-sbatch SpliceAI_jump_SAE_training_job.sh
+sbatch ./training_scripts/SpliceAI_10k_vanilla_SAE_training_job.sh
+sbatch ./training_scripts/SpliceAI_10k_topk_SAE_training_job.sh
+sbatch ./training_scripts/SpliceAI_10k_batchtopk_SAE_training_job.sh
+sbatch ./training_scripts/SpliceAI_10k_jump_SAE_training_job.sh
 ```
 
-These will train the vanilla, top-k, batch-topk, and jump SAEs on the SpliceAI model and save the model weights and metrics to the `out` directory.
+These will train the vanilla, top-k, batch-topk, and jump SAEs on SpliceAI and save the model weights and metrics to the `out` directory.
 
 
 ## customization
@@ -51,7 +51,6 @@ Including the SAE type, the dictionary size, the learning rate, the number of ep
 
 The code can also be used directly from a python script.
 
-```python
 
 
 

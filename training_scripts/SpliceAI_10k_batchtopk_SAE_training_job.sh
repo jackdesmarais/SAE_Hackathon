@@ -15,8 +15,14 @@ conda init bash
 source activate architecture_search_env
 
 python ./Train_SpliceAI_SAE.py --act-size 64 \
+                            --wsets 11 11 21 41 \
+                            --dsets 1 4 10 25 \
+                            --hook-point "output megablocks.3.megablock.2.block" \
+                            --h5-file SpliceAI_Models/SpliceNet10000_g1.h5 \
                             --dict-size 1024 \
-                            --sae-type vanilla \
+                            --sae-type topk \
                             --wandb-project sparse_autoencoders \
-                            --l1-coeff 0.1 \
-                            --epochs 2
+                            --top-k 5 \
+                            --top-k-aux 128 \
+                            --aux-penalty 0.2 
+                            

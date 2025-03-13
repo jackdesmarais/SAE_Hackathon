@@ -1,0 +1,4 @@
+sbatch ./training_scripts/SpliceAI_10k_batchtopk_SAE_training_job.sh
+sbatch ./training_scripts/SpliceAI_10k_vanilla_SAE_training_job.sh
+sbatch ./training_scripts/SpliceAI_10k_topk_SAE_training_job.sh
+sbatch ./training_scripts/SpliceAI_10k_jump_SAE_training_job.sh
