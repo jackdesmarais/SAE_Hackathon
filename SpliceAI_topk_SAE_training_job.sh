@@ -14,4 +14,11 @@ module load EBModules Anaconda3/2022.05
 conda init bash
 source activate architecture_search_env
 
-python ./Train_SpliceAI_SAE.py 
+python ./Train_SpliceAI_SAE.py --act-size 64 \
+                            --dict-size 1024 \
+                            --sae-type batch_topk \
+                            --wandb-project sparse_autoencoders \
+                            --top-k 5 \
+                            --top-k-aux 128 \
+                            --aux-penalty 0.2 \
+                            --epochs 2

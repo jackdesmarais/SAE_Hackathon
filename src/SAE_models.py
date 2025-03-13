@@ -88,7 +88,7 @@ def post_init_cfg(cfg):
     Returns:
         dict: Configuration with added name field
     """
-    cfg["name"] = f"{cfg['model_name']}_{cfg['hook_point']}_{cfg['dict_size']}_{cfg['sae_type']}_{cfg['top_k']}_{cfg['lr']}"
+    cfg["name"] = f"{cfg.get('model_name','UnknownModel')}_{cfg.get('hook_point','UnknownHookPoint')}_{cfg['dict_size']}_{cfg['sae_type']}_{cfg['top_k']}_{cfg['lr']}"
     return cfg
 
 class BaseAutoencoder(L.LightningModule):
@@ -675,6 +675,7 @@ class VanillaSAE(BaseAutoencoder):
             "l2_loss": l2_loss,
             "l0_norm": l0_norm,
             "l1_norm": l1_norm,
+            "aux_loss": 0,
         }
         return output
 
@@ -772,12 +773,11 @@ class JumpReLU(nn.Module):
     Args:
         feature_size (int): Number of features
         bandwidth (float): Bandwidth parameter
-        device (str): Device to place tensors on
     """
 
-    def __init__(self, feature_size, bandwidth, device='cpu'):
+    def __init__(self, feature_size, bandwidth):
         super(JumpReLU, self).__init__()
-        self.log_threshold = nn.Parameter(torch.zeros(feature_size, device=device))
+        self.log_threshold = nn.Parameter(torch.zeros(feature_size))
         self.bandwidth = bandwidth
 
     def forward(self, x):
@@ -848,7 +848,7 @@ class JumpReLUSAE(BaseAutoencoder):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.jumprelu = JumpReLU(feature_size=cfg["dict_size"], bandwidth=cfg["bandwidth"], device=cfg["device"])
+        self.jumprelu = JumpReLU(feature_size=cfg["dict_size"], bandwidth=cfg["bandwidth"])
 
     def forward(self, x, use_pre_enc_bias=False):
         x, x_mean, x_std = self.preprocess_input(x)
@@ -885,5 +885,6 @@ class JumpReLUSAE(BaseAutoencoder):
             "l2_loss": l2_loss,
             "l0_norm": l0,
             "l1_norm": l0,
+            "aux_loss": 0,
         }
         return output

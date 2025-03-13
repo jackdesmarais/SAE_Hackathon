@@ -4,6 +4,8 @@ if __name__ == '__main__':
     ################### 1. General setup #######################
     ################### Mostly not model specific ##############
     ############################################################
+    import sys
+    sys.path.append('./src')
     import argparse
     import torch
     from SAE_models import get_cfg, TopKSAE, VanillaSAE, JumpReLUSAE, BatchTopKSAE
@@ -42,11 +44,11 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=1000, help='maximum number of training epochs')
     parser.add_argument('--outpath', type=str, default='./out/', help='Output directory path')
     #Warmstart parameters
-    parser.add_argument('--warmstart-batches', type=int, default=1000, help='Number of warmstart batches')
+    parser.add_argument('--warmstart-batches', type=int, default=0, help='Number of warmstart batches')
     parser.add_argument('--warmstart-start-factor', type=float, default=0.0001, help='Initial factor for warmstart')
     parser.add_argument('--warmstart-end-factor', type=float, default=1, help='Final factor for warmstart')
     #Learning rate scheduler parameters
-    parser.add_argument('--scheduler', type=str, options=['none','RedOnPlateau', 'CosineAnnealing','OneCycleLR'], default='RedOnPlateau', help='Learning rate scheduler type')
+    parser.add_argument('--scheduler', type=str, choices=['none','RedOnPlateau', 'CosineAnnealing','OneCycleLR'], default='RedOnPlateau', help='Learning rate scheduler type')
     parser.add_argument('--weight-decay', type=float, default=0.0001, help='Weight decay for optimizer')
     #ReduceLROnPlateau parameters
     parser.add_argument('--reduceLROnPlateau-factor', type=float, default=0.1, help='Factor by which to reduce learning rate')
@@ -76,22 +78,23 @@ if __name__ == '__main__':
     parser.add_argument('--output-dim', type=int, default=3, help='Number of output dimensions')
     parser.add_argument('--dropout-rate', type=float, default=None, help='Dropout rate')
     parser.add_argument('--block-count', type=int, default=4, help='Number of MegaBlocks')
-    parser.add_argument('--embedding-layer', type=str, default='mb 1', help='Embedding layer to use')
+    parser.add_argument('--hook-point', type=str, default='mb 1', help='Embedding layer to use')
     parser.add_argument('--embedding-dim', type=int, default=32, help='Embedding dimension')
     parser.add_argument('--input-length', type=int, default=176, help='Input length')
     parser.add_argument('--positions-to-use', nargs='+', type=int, default=[0,75], help='Positions to use for training')
     parser.add_argument('--csv-path', type=str, default='./data/Liao_Dataset/liao_training_set.csv', help='Path to training set CSV file')
     parser.add_argument('--plasmid-path', type=str, default='./data/Liao_Dataset/liao_plasmid.gbk', help='Path to plasmid file')
+    parser.add_argument('--test-csv-path', type=str, default='./data/Liao_Dataset/liao_test_set.csv', help='Path to test set CSV file')
     parser.add_argument('--flanking-len', type=int, default=6, help='Flanking length')
     parser.add_argument('--no-add-context-len', action='store_false', dest='add_context_len', help='are the positions relative to the input length rather than context length')
     parser.add_argument('--no-auto-find-bc-pos', action='store_false', dest='auto_find_bc_pos', help='Disable automatic finding of BC positions')
     parser.add_argument('--no-auto-find-ex-pos', action='store_false', dest='auto_find_ex_pos', help='Disable automatic finding of exon positions')
     parser.add_argument('--no-preload', action='store_false', dest='preload', help='Disable data preloading')
     parser.add_argument('--no-preload-embeddings', action='store_false', dest='preload_embeddings', help='Disable embeddings preloading')
-    parser.add_argument('--num-workers', type=int, default=0, help='Number of workers for data loading')
+    parser.add_argument('--num-workers', type=int, default=16, help='Number of workers for data loading')
     parser.add_argument('--spliceai-batch-size', type=int, default=100, help='Batch size for training')
     parser.add_argument('--h5-file', type=str, default='SpliceAI_Models/SpliceNet80_g1.h5', help='Path to SpliceAI model file')
-    
+    parser.add_argument('--model-name', type=str, default='SpliceAI', help='Name of the model')
     ############################################################
     ################### 2. Training setup ######################
     ################### Not model specific #####################
@@ -136,13 +139,15 @@ if __name__ == '__main__':
                      output_dim=cfg['output_dim'], 
                      dropout_rate=cfg['dropout_rate'], 
                      block_count=cfg['block_count'], 
-                     embedding_layer=cfg['embedding_layer'], 
+                     embedding_layer=cfg['hook_point'], 
                      embedding_dim=cfg['embedding_dim'], 
                      input_length=cfg['input_length'], 
                      positions_to_use=cfg['positions_to_use'])
     
     spliceai_model.load_from_h5_file(cfg['h5_file'])
     spliceai_model.mode = 'embed'
+
+    cfg['context_len'] = spliceai_model.cl
 
     if cfg['add_context_len']:
         cfg['positions_to_use'] = [pos+cfg['context_len']//2 for pos in cfg['positions_to_use']]
@@ -219,12 +224,12 @@ if __name__ == '__main__':
     val_metrics = trainer.validate(val_dl)
 
     print(val_metrics)
-    with open(cfg['outpath'] + 'val_metrics.json', 'w') as f:
+    with open(cfg['outpath'] + f"{cfg['name']}_{cfg['seed']}_val_metrics.json", 'w') as f:
         json.dump(val_metrics, f)
 
     test_metrics = trainer.test(test_dl)
 
     print(test_metrics)
-    with open(cfg['outpath'] + 'test_metrics.json', 'w') as f:
+    with open(cfg['outpath'] + f"{cfg['name']}_{cfg['seed']}_test_metrics.json", 'w') as f:
         json.dump(test_metrics, f)
 

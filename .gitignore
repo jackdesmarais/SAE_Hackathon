@@ -1,2 +1,6 @@
 data/Liao_Dataset/
 SpliceAI_Models/
+logs/
+out/
+wandb/
+src/__pycache__/
