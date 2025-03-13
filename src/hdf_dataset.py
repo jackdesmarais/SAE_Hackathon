@@ -14,7 +14,7 @@ class HDF3DIterator:
         current_idx (int): Current position in iteration
     """
     
-    def __init__(self, file_path, dataset_name, transform=None):
+    def __init__(self, file_path, dataset_name, transform=None, preload=False):
         """Initialize the iterator.
         
         Args:
@@ -31,7 +31,9 @@ class HDF3DIterator:
 
         self.hdf_file=None
         self.current_idx = 0
-        
+        self.preload = preload
+        self.data = None
+
     def __len__(self):
         """Return the total number of items in first two dimensions."""
         return self.shape[0] * self.shape[1]
@@ -74,7 +76,12 @@ class HDF3DIterator:
             else:
                 raise ValueError("Index must be, list, array, integer or 2-tuple")
                 
-            if self.hdf_file is None:
+            if self.data is not None:
+                x= self.data[i,j,:]
+            elif self.preload:
+                self.open()
+                x= self.data[i,j,:]
+            elif (self.hdf_file is None) and (not self.preload):
                 with self:
                     x= self.hdf_file[self.dataset_name][i,j,:]
             else:
@@ -107,10 +114,13 @@ class HDF3DIterator:
 
     def open(self):
         self.hdf_file = h5py.File(self.file_path, 'r')
+        if self.preload:
+            self.data = self.hdf_file[self.dataset_name][:,:,:]
 
     def close(self):
         self.hdf_file.close()
         self.hdf_file=None
+        self.data=None
 
     def __enter__(self):
         self.open()
