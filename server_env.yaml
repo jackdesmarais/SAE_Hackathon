@@ -1,0 +1,33 @@
+name: architecture_search_env
+channels:
+  - defaults
+  - pytorch
+  - nvidia
+dependencies:
+  - python>=3.10
+  - pytorch::pytorch>=2.4
+  - pytorch::torchvision
+  - pytorch::torchaudio
+  - pytorch::pytorch-cuda
+  - pytorch::captum
+  - conda-forge::biopython
+  - pandas
+  - scipy
+  - numpy
+  - ipykernel
+  - conda-forge::ipywidgets
+  - matplotlib
+  - seaborn
+  - h5py
+  - conda-forge::statsmodels
+  - conda-forge::lightning
+  - conda-forge::torchmetrics
+  - conda-forge::scikit-learn
+  - pip
+  - pip:
+    - ray[train,tune]
+    - wandb
+    - git+https://github.com/gregversteeg/NPEET.git
+    - hyperopt
+    - logomaker
+    - pyfaidx
