@@ -26,6 +26,8 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --test-data-path ./fake_embed_test.h5 \
                             --train-dataset-name embed_train \
                             --val-dataset-name embed_val \
-                            --test-dataset-name embed_test
+                            --test-dataset-name embed_test \
+                            --hook-point DEBUG \
+                            --model-name DEBUG
 
                             
