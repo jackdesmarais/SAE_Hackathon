@@ -17,8 +17,8 @@ source activate architecture_search_env
 python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --top-k 16 \
                             --dict-size 1024 \
-                            --batch-size 4194304 \
-                            --n-batches-to-dead 3 \
+                            --batch-size 2097152 \
+                            --n-batches-to-dead 5 \
                             --top-k-aux 256 \
                             --aux-penalty 0.0625 \
                             --preload-data
