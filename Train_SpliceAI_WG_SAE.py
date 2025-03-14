@@ -90,8 +90,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cfg = get_cfg(**vars(args))
+    print('cfg - set')
+    print(cfg)
 
     trainer = SAETraining(cfg)
+    print('trainer - set')
 
 
     ############################################################
@@ -107,7 +110,7 @@ if __name__ == '__main__':
 
     test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], preload=cfg['preload_data'])
     test_dl = torch.utils.data.dataloader.DataLoader(test_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'])
-    
+    print('data - set')
 
     ############################################################
     ################### 4. SAE Model setup #####################
@@ -125,6 +128,7 @@ if __name__ == '__main__':
         model = JumpReLUSAE(cfg)
     elif cfg['sae_type'] == 'batch_topk':
         model = BatchTopKSAE(cfg)
+    print('model - set')
 
     ############################################################
     ################### 5. Training ############################
@@ -132,8 +136,9 @@ if __name__ == '__main__':
     ############################################################
 
     with train_ds, val_ds:
+        print('training - starting')
         final_model = trainer.train(model, train_dl, val_dl)
-
+    print('training - done')
 
     ############################################################
     ################### 6. testing/validation ##################
@@ -141,14 +146,18 @@ if __name__ == '__main__':
     ############################################################
 
     with val_ds:
+        print('validation - starting')
         val_metrics = trainer.validate(val_dl)
+    print('validation - done')
 
     print(val_metrics)
     with open(cfg['outpath'] + f"{cfg['name']}_{cfg['seed']}_val_metrics.json", 'w') as f:
         json.dump(val_metrics, f)
 
     with test_ds:
+        print('testing - starting')
         test_metrics = trainer.test(test_dl)
+    print('testing - done')
 
     print(test_metrics)
     with open(cfg['outpath'] + f"{cfg['name']}_{cfg['seed']}_test_metrics.json", 'w') as f:
