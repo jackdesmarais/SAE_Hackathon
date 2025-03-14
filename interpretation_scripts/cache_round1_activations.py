@@ -47,21 +47,22 @@ if __name__ == "__main__":
     model = model.to('cuda')
     model.eval()
     current_idx=0
+    dataset.open()
     with h5py.File(f"./out/Predictions_{cfg['name']}_{cfg['l1_coeff']}_{model_idx}", 'w') as h5f:
         for i, batch in enumerate(dataloader):
             batch = batch.to('cuda')
             with torch.no_grad():
                 predictions_batch, activations_batch = model.predict_step(batch,i)
-                activations_batch = activations_batch.cpu().numpy().reshape(-1, 5000, activations_batch.shape[-1])
-                predictions_batch = predictions_batch.cpu().numpy().reshape(-1, 5000, predictions_batch.shape[-1])
+                activations_batch = activations_batch.cpu().numpy()
+                predictions_batch = predictions_batch.cpu().numpy()
                 
                 if i ==0:
                     activations = h5f.create_dataset(f"activations", 
-                                    shape=(ceil(len(dataset)/5000),5000,activations_batch.shape[-1]),
+                                    shape=(len(dataset),activations_batch.shape[-1]),
                                     dtype='float32',
                                 )
                     predictions = h5f.create_dataset(f"predictions", 
-                                        shape=(ceil(len(dataset)/5000),5000,predictions_batch.shape[-1]),
+                                        shape=(len(dataset),predictions_batch.shape[-1]),
                                         dtype='float32',
                                     )
                 new_idx = current_idx+predictions_batch.shape[0]
