@@ -14,6 +14,12 @@ module load EBModules Anaconda3/2022.05
 conda init bash
 source activate architecture_search_env
 
+# Parse command line arguments
+topk=$1
+dict_size=$2
+topk_aux=$3
+aux_penalty=$4
+
 python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --sae-type batch_topk \
                             --top-k ${topk} \
