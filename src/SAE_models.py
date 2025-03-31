@@ -395,49 +395,343 @@ class BaseAutoencoder(L.LightningModule):
             })
         
         return([optimizer],schedulers)
+    
 
-class BatchTopKSAE(BaseAutoencoder):
+class GlobalBatchTopKMatryoshkaSAE(BaseAutoencoder):
     """
-    Batch-wise top-k sparse autoencoder.
+    Global Batch Top-K Matryoshka Sparse Autoencoder.
 
-    Takes top k activations across entire batch rather than per sample.
+    This class implements a hierarchical sparse autoencoder with multiple groups of features
+    that are activated in a nested (matryoshka) fashion. Features are selected using a global
+    batch-wise top-k activation mechanism.
+
+    The model consists of multiple groups of features defined by group_sizes. Each group adds
+    another layer of reconstruction on top of previous groups, allowing for hierarchical 
+    feature learning.
 
     Args:
-        cfg (dict): Configuration dictionary
+        cfg (dict): Configuration dictionary containing:
+            - group_sizes (list): List of integers defining size of each feature group
+            - act_size (int): Size of input/output activation dimension
+            - device (str): Device to place model on ('cpu' or 'cuda')
+            - dtype (torch.dtype): Data type for model parameters
+            - top_k (int): Number of top activations to keep per batch
+            - top_k_aux (int): Number of auxiliary activations for dead feature recovery
+            - n_batches_to_dead (int): Number of batches before feature considered dead
+            - l1_coeff (float): L1 regularization coefficient
+            - aux_penalty (float): Penalty coefficient for auxiliary loss
     """
-
     def __init__(self, cfg):
         super().__init__(cfg)
 
+        total_dict_size = sum(cfg["group_sizes"])
+        self.group_sizes = cfg["group_sizes"]
+        
+        self.group_indices = [0] + list(torch.cumsum(torch.tensor(cfg["group_sizes"]), dim=0))
+        self.active_groups = len(cfg["group_sizes"])
+
+        self.b_dec = nn.Parameter(torch.zeros(self.config["act_size"]))
+        self.b_enc = nn.Parameter(torch.zeros(total_dict_size))
+        
+        self.W_enc = nn.Parameter(
+            torch.nn.init.kaiming_uniform_(
+                torch.empty(cfg["act_size"], total_dict_size)
+            )
+        )
+        
+        self.W_dec = nn.Parameter(
+            torch.nn.init.kaiming_uniform_(
+                torch.empty(total_dict_size, cfg["act_size"])
+            )
+        )
+        
+        self.W_dec.data[:] = self.W_enc.t().data
+        self.W_dec.data[:] = self.W_dec / self.W_dec.norm(dim=-1, keepdim=True)
+
+        self.num_batches_not_active = torch.zeros(total_dict_size, device=cfg["device"])
+        self.register_buffer('threshold', torch.tensor(0.0))
+        self.to(cfg["dtype"]).to(cfg["device"])
+
+    def compute_activations(self, x_cent):
+        """
+        Compute activations using global batch top-k sparsity.
+
+        Args:
+            x_cent (torch.Tensor): Centered input tensor (input - bias)
+
+        Returns:
+            tuple: (acts, acts_topk)
+                - acts: Raw ReLU activations
+                - acts_topk: Sparse activations after top-k selection
+        """
+        pre_acts = x_cent @ self.W_enc
+        acts = F.relu(pre_acts)
+        
+        if self.training:
+            acts_topk = torch.topk(
+                acts.flatten(), 
+                self.cfg["top_k"] * x_cent.shape[0], 
+                dim=-1
+            )
+            acts_topk = (
+                torch.zeros_like(acts.flatten())
+                .scatter(-1, acts_topk.indices, acts_topk.values)
+                .reshape(acts.shape)
+            )
+            self.update_threshold(acts_topk)
+        else:
+            acts_topk = torch.where(acts > self.threshold, acts, torch.zeros_like(acts))
+        
+        return acts, acts_topk
+
+
     def forward(self, x):
         """
-        Forward pass.
+        Forward pass through the network.
+
+        Processes input through each group sequentially, building up the reconstruction
+        layer by layer.
 
         Args:
             x (torch.Tensor): Input tensor
 
         Returns:
-            dict: Output dictionary containing reconstructed data and metrics
+            dict: Output dictionary containing reconstructions and loss metrics
         """
         x, x_mean, x_std = self.preprocess_input(x)
 
         x_cent = x - self.b_dec
-        acts = F.relu(x_cent @ self.W_enc)
-        acts_topk = torch.topk(acts.flatten(), self.cfg["top_k"] * x.shape[0], dim=-1)
-        acts_topk = (
-            torch.zeros_like(acts.flatten())
-            .scatter(-1, acts_topk.indices, acts_topk.values)
-            .reshape(acts.shape)
-        )
+        x_reconstruct = self.b_dec
+
+        intermediate_reconstructs = []
+        all_acts, all_acts_topk = self.compute_activations(x_cent)
+
+        for i in range(self.active_groups):
+            start_idx = self.group_indices[i]
+            end_idx = self.group_indices[i+1]
+            W_dec_slice = self.W_dec[start_idx:end_idx, :]
+            acts_topk = all_acts_topk[:, start_idx:end_idx]
+            x_reconstruct = acts_topk @ W_dec_slice + x_reconstruct
+            intermediate_reconstructs.append(x_reconstruct)
+
+        self.update_inactive_features(all_acts_topk)
+        output = self.get_loss_dict(x, x_reconstruct, all_acts, all_acts_topk, x_mean, 
+                                  x_std, intermediate_reconstructs)
+        return output
+
+    def get_loss_dict(self, x, x_reconstruct, all_acts, all_acts_topk, x_mean, x_std, intermediate_reconstructs):
+        """
+        Compute all loss terms and metrics.
+
+        Args:
+            x (torch.Tensor): Input tensor
+            x_reconstruct (torch.Tensor): Final reconstruction
+            all_acts (torch.Tensor): Raw activations
+            all_acts_topk (torch.Tensor): Sparse activations
+            x_mean (torch.Tensor): Input mean for normalization
+            x_std (torch.Tensor): Input std for normalization
+            intermediate_reconstructs (list): List of intermediate reconstructions
+
+        Returns:
+            dict: Dictionary containing all loss terms and metrics
+        """
+        total_l2_loss = (self.b_dec - x.float()).pow(2).mean()
+        l2_losses = torch.tensor([]).to(x.device)
+        for intermediate_reconstruct in intermediate_reconstructs:
+            l2_losses = torch.cat([l2_losses, (intermediate_reconstruct.float() - 
+                                             x.float()).pow(2).mean().unsqueeze(0)])
+            total_l2_loss += (intermediate_reconstruct.float() - x.float()).pow(2).mean()
+
+        min_l2_loss = l2_losses.min()
+        max_l2_loss = l2_losses.max()
+        mean_l2_loss = total_l2_loss / (len(intermediate_reconstructs) + 1)
+
+        l1_norm = all_acts_topk.float().abs().sum(-1).mean()
+        l0_norm = (all_acts_topk > 0).float().sum(-1).mean()
+        l1_loss = self.cfg["l1_coeff"] * l1_norm
+        aux_loss = self.get_auxiliary_loss(x, x_reconstruct, all_acts)
+        loss = mean_l2_loss + l1_loss + aux_loss
+        
+        num_dead_features = (self.num_batches_not_active > self.cfg["n_batches_to_dead"]).sum()
+        sae_out = self.postprocess_output(x_reconstruct, x_mean, x_std)
+        output = {
+            "sae_out": sae_out,
+            "feature_acts": all_acts_topk,
+            "num_dead_features": num_dead_features,
+            "loss": loss,
+            "l1_loss": l1_loss,
+            "l2_loss": mean_l2_loss,
+            "min_l2_loss": min_l2_loss,
+            "max_l2_loss": max_l2_loss,
+            "l0_norm": l0_norm,
+            "l1_norm": l1_norm,
+            "aux_loss": aux_loss,
+            "threshold": self.threshold,
+        }
+        return output
+
+    def get_auxiliary_loss(self, x, x_reconstruct, all_acts):
+        """
+        Compute auxiliary loss for dead feature recovery.
+
+        Args:
+            x (torch.Tensor): Input tensor
+            x_reconstruct (torch.Tensor): Reconstruction tensor
+            all_acts (torch.Tensor): All activations before sparsification
+
+        Returns:
+            torch.Tensor: Auxiliary loss value
+        """
+        residual = x.float() - x_reconstruct.float()
+        aux_reconstruct = torch.zeros_like(residual)
+        
+        acts = all_acts
+        dead_features = self.num_batches_not_active >= self.cfg["n_batches_to_dead"]
+        
+        if dead_features.sum() > 0:
+            acts_topk_aux = torch.topk(
+                acts[:, dead_features],
+                min(self.cfg["top_k_aux"], dead_features.sum()),
+                dim=-1,
+            )
+            acts_aux = torch.zeros_like(acts[:, dead_features]).scatter(
+                -1, acts_topk_aux.indices, acts_topk_aux.values
+            )
+            x_reconstruct_aux = acts_aux @ self.W_dec[dead_features]
+            aux_reconstruct = aux_reconstruct + x_reconstruct_aux
+                
+        if aux_reconstruct.abs().sum() > 0:
+            aux_loss = self.cfg["aux_penalty"] * (aux_reconstruct.float() - residual.float()).pow(2).mean()
+            return aux_loss
+        else:
+            return torch.tensor(0.0, device=x.device)
+    
+    @torch.no_grad()
+    def update_threshold(self, acts_topk, lr=0.01):
+        """
+        Update activation threshold using exponential moving average.
+
+        Args:
+            acts_topk (torch.Tensor): Top-k activations
+            lr (float, optional): Learning rate for update. Defaults to 0.01.
+        """
+        positive_mask = acts_topk > 0
+        if positive_mask.any():
+            min_positive = acts_topk[positive_mask].min()
+            self.threshold = (1 - lr) * self.threshold + lr * min_positive
+
+
+class BatchTopKSAE(BaseAutoencoder):
+    """
+    Batch-wise top-k sparse autoencoder.
+
+    This class implements a sparse autoencoder that selects the top-k activations across the entire batch
+    rather than per individual sample. This encourages competition between features across samples and can
+    lead to more efficient feature learning.
+
+    The model consists of:
+    - An encoder that maps inputs to a higher dimensional feature space
+    - A sparsification step that keeps only the top-k activations across the batch
+    - A decoder that reconstructs the input from the sparse features
+    - An auxiliary loss mechanism to reactivate dead features
+    - A dynamic threshold that adapts to activation magnitudes during training
+
+    Args:
+        cfg (dict): Configuration dictionary containing:
+            - act_size (int): Size of input/output activation dimension
+            - dict_size (int): Number of features in dictionary
+            - top_k (int): Number of top activations to keep per batch
+            - top_k_aux (int): Number of auxiliary activations for dead feature recovery
+            - n_batches_to_dead (int): Number of batches before feature considered dead
+            - l1_coeff (float): L1 regularization coefficient
+            - aux_penalty (float): Penalty coefficient for auxiliary loss
+            - device (str): Device to place model on ('cpu' or 'cuda')
+            - dtype (torch.dtype): Data type for model parameters
+    """
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.register_buffer('threshold', torch.tensor(0.0))
+        
+    def compute_activations(self, x):
+        """
+        Compute activations using batch-wise top-k sparsity.
+
+        Args:
+            x (torch.Tensor): Input tensor
+
+        Returns:
+            tuple: (acts, acts_topk)
+                - acts: Raw ReLU activations
+                - acts_topk: Sparse activations after top-k selection
+        """
+        x_cent = x - self.b_dec
+        pre_acts = x_cent @ self.W_enc
+        acts = F.relu(pre_acts)
+        
+        if self.training:
+            acts_topk = torch.topk(
+                acts.flatten(), 
+                self.config["top_k"] * x.shape[0], 
+                dim=-1
+            )
+            acts_topk = (
+                torch.zeros_like(acts.flatten())
+                .scatter(-1, acts_topk.indices, acts_topk.values)
+                .reshape(acts.shape)
+            )
+        else:
+            acts_topk = torch.where(acts > self.threshold, acts, torch.zeros_like(acts))
+        
+        return acts, acts_topk
+
+    def forward(self, x):
+        """
+        Forward pass through the autoencoder.
+
+        Performs the following steps:
+        1. Preprocesses input data (centering/normalization)
+        2. Computes activations through encoder
+        3. Applies batch-wise top-k sparsification
+        4. Reconstructs input through decoder
+        5. Updates threshold and tracks inactive features
+        6. Computes loss terms and metrics
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, act_size)
+
+        Returns:
+            dict: Output dictionary containing:
+                - sae_out (torch.Tensor): Reconstructed output
+                - feature_acts (torch.Tensor): Sparse feature activations
+                - num_dead_features (int): Number of inactive features
+                - loss (torch.Tensor): Total loss
+                - l1_loss (torch.Tensor): L1 regularization loss
+                - l2_loss (torch.Tensor): Reconstruction loss
+                - l0_norm (torch.Tensor): Number of non-zero activations
+                - l1_norm (torch.Tensor): Sum of absolute activations
+                - aux_loss (torch.Tensor): Auxiliary loss for dead features
+                - threshold (torch.Tensor): Current activation threshold
+        """
+        x, x_mean, x_std = self.preprocess_input(x)
+        acts, acts_topk = self.compute_activations(x)
+        
         x_reconstruct = acts_topk @ self.W_dec + self.b_dec
 
+        self.update_threshold(acts_topk)
         self.update_inactive_features(acts_topk)
         output = self.get_loss_dict(x, x_reconstruct, acts, acts_topk, x_mean, x_std)
         return output
 
     def get_loss_dict(self, x, x_reconstruct, acts, acts_topk, x_mean, x_std):
         """
-        Calculate loss terms.
+        Calculate loss terms and metrics.
+
+        Computes various loss components and metrics including:
+        - L2 reconstruction loss
+        - L1 sparsity regularization
+        - L0 sparsity measure (number of non-zero activations)
+        - Auxiliary loss for dead feature reactivation
 
         Args:
             x (torch.Tensor): Input tensor
@@ -448,7 +742,7 @@ class BatchTopKSAE(BaseAutoencoder):
             x_std (torch.Tensor): Input std for denormalization
 
         Returns:
-            dict: Dictionary of loss terms and metrics
+            dict: Dictionary containing loss terms and metrics
         """
         l2_loss = (x_reconstruct.float() - x.float()).pow(2).mean()
         l1_norm = acts_topk.float().abs().sum(-1).mean()
@@ -470,6 +764,7 @@ class BatchTopKSAE(BaseAutoencoder):
             "l0_norm": l0_norm,
             "l1_norm": l1_norm,
             "aux_loss": aux_loss,
+            "threshold": self.threshold,
         }
         return output
 
@@ -477,13 +772,17 @@ class BatchTopKSAE(BaseAutoencoder):
         """
         Calculate auxiliary loss for dead feature reactivation.
 
+        This loss encourages dead features to learn to reconstruct the residual error
+        of the main reconstruction. A feature is considered dead if it hasn't been
+        activated for n_batches_to_dead batches.
+
         Args:
             x (torch.Tensor): Input tensor
-            x_reconstruct (torch.Tensor): Reconstructed output
-            acts (torch.Tensor): Feature activations
+            x_reconstruct (torch.Tensor): Reconstructed output from main features
+            acts (torch.Tensor): All feature activations before sparsification
 
         Returns:
-            torch.Tensor: Auxiliary loss value
+            torch.Tensor: Auxiliary loss value for dead feature reactivation
         """
         dead_features = self.num_batches_not_active >= self.cfg["n_batches_to_dead"]
         if dead_features.sum() > 0:
