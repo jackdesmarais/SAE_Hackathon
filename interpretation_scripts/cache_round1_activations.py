@@ -16,9 +16,9 @@ if __name__ == "__main__":
     parser.add_argument("--model-idx", type=int, required=True)
     args = parser.parse_args()
 
-    dataset_path = '/grid/hackathon/data_norepl/splarseers/output/embed_train.h5'
-    dataset = HDF3DIterator(dataset_path, 'embed_train', preload=True)
-    dataloader = DataLoader(dataset, batch_size=2097152, num_workers=0)
+    dataset_path = '/grid/hackathon/data_norepl/splarseers/output/embed_test.h5'
+    dataset = HDF3DIterator(dataset_path, 'embed_test', preload=True)
+    dataloader = DataLoader(dataset, batch_size=5000, num_workers=0)
 
     models = [
         ('BatchTopKSAE','50026.1','./out/SpliceAI_WG_Add_14_MB_3_out_1024_batch_topk_16_0.0003_49_epoch=07_val_loss=4.25.ckpt',{'seed': 49, 'batch_size': 2097152, 'lr': 0.0003, 'l1_coeff': 0, 'beta1': 0.9, 'beta2': 0.99, 'max_grad_norm': 100000, 'dtype': torch.float32, 'act_size': 32, 'dict_size': 1024, 'wandb_project': 'sparse_autoencoders', 'input_unit_norm': False, 'perf_log_freq': 1000, 'sae_type': 'batch_topk', 'checkpoint_freq': 10000, 'n_batches_to_dead': 5, 'warmstart_batches': 0, 'warmstart_start_factor': 0.0001, 'warmstart_end_factor': 1, 'scheduler': 'RedOnPlateau', 'weight_decay': 0.0001, 'reduceLROnPlateau_factor': 0.1, 'reduceLROnPlateau_patience': 4, 'reduceLROnPlateau_threshold': 0.0001, 'reduceLROnPlateau_cooldown': 0, 'reduceLROnPlateau_min': 0, 'reduceLROnPlateau_eps': 1e-08, 'epochs': 1000, 'training_set_batches': 1000, 'outpath': './out/', 'min_delta': 0, 'patience': 10, 'accelerator': 'auto', 'devices': 'auto', 'include_checkpointing': True, 'include_early_stopping': True, 'track_LR': True, 'top_k': 16, 'top_k_aux': 256, 'aux_penalty': 0.0625, 'bandwidth': 0.001, 'num_workers': 16, 'train_data_path': '/grid/hackathon/data_norepl/splarseers/output/embed_train.h5', 'val_data_path': '/grid/hackathon/data_norepl/splarseers/output/embed_val.h5', 'test_data_path': '/grid/hackathon/data_norepl/splarseers/output/embed_test.h5', 'preload_data': True, 'train_dataset_name': 'embed_train', 'val_dataset_name': 'embed_val', 'test_dataset_name': 'embed_test', 'hook_point': 'Add_14_MB_3_out', 'model_name': 'SpliceAI_WG', 'name': 'SpliceAI_WG_Add_14_MB_3_out_1024_batch_topk_16_0.0003'}),
@@ -48,21 +48,23 @@ if __name__ == "__main__":
     model.eval()
     current_idx=0
     dataset.open()
-    with h5py.File(f"./out/Predictions_{cfg['name']}_{cfg['l1_coeff']}_{model_idx}", 'w') as h5f:
+    with h5py.File(f"/grid/hackathon/data_norepl/splarseers/output/Predictions_{cfg['name']}_{cfg['l1_coeff']}_{model_idx}", 'w') as h5f:
         for i, batch in enumerate(dataloader):
+            if i >=1000:
+                break
             batch = batch.to('cuda')
             with torch.no_grad():
                 predictions_batch, activations_batch = model.predict_step(batch,i)
-                activations_batch = activations_batch.cpu().numpy()
-                predictions_batch = predictions_batch.cpu().numpy()
+                activations_batch = activations_batch.cpu().numpy().reshape(-1, 5000, activations_batch.shape[-1])
+                predictions_batch = predictions_batch.cpu().numpy().reshape(-1, 5000, predictions_batch.shape[-1])
                 
                 if i ==0:
                     activations = h5f.create_dataset(f"activations", 
-                                    shape=(len(dataset),activations_batch.shape[-1]),
+                                    shape=(1000,5000,activations_batch.shape[-1]),
                                     dtype='float32',
                                 )
                     predictions = h5f.create_dataset(f"predictions", 
-                                        shape=(len(dataset),predictions_batch.shape[-1]),
+                                        shape=(1000,5000,predictions_batch.shape[-1]),
                                         dtype='float32',
                                     )
                 new_idx = current_idx+predictions_batch.shape[0]

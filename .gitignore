@@ -4,3 +4,5 @@ logs/
 out/
 wandb/
 src/__pycache__/
+lightning_logs/
+data/whole_genome/

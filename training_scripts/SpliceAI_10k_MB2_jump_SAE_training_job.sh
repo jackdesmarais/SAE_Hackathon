@@ -14,20 +14,14 @@ module load EBModules Anaconda3/2022.05
 conda init bash
 source activate architecture_search_env
 
-python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
-                            --top-k 8 \
+python ./Train_SpliceAI_SAE.py --act-size 64 \
+                            --wsets 11 11 21 41 \
+                            --dsets 1 4 10 25 \
+                            --hook-point "output megablocks.2.megablock.2.block" \
+                            --h5-file SpliceAI_Models/SpliceNet10000_g1.h5 \
                             --dict-size 1024 \
-                            --batch-size 16384 \
-                            --n-batches-to-dead 600 \
-                            --top-k-aux 256 \
-                            --aux-penalty 0.125 \
-                            --train-data-path ./testing/fake_embed_train.h5 \
-                            --val-data-path ./testing/fake_embed_val.h5 \
-                            --test-data-path ./testing/fake_embed_test.h5 \
-                            --train-dataset-name embed_train \
-                            --val-dataset-name embed_val \
-                            --test-dataset-name embed_test \
-                            --hook-point DEBUG \
-                            --model-name DEBUG
-
+                            --sae-type jumprelu \
+                            --wandb-project sparse_autoencoders \
+                            --l1-coeff 0.1 \
+                            --bandwidth 0.001 
                             
