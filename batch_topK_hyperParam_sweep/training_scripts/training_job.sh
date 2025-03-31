@@ -29,7 +29,8 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --top-k-aux ${topk_aux} \
                             --aux-penalty ${aux_penalty} \
                             --preload-data \
-                            --name "v1_batchtopk_HP_sweep" \
+                            --exp-name "v1_batchtopk_HP_sweep" \
+                            --overwite-name "SpliceAI_WG_Add_14_MB_3_out_topk${topk}_dict${dict_size}_topkaux${topk_aux}_auxpen${aux_penalty}" \
                             --outpath ./batch_topK_hyperParam_sweep/out/
 
                             

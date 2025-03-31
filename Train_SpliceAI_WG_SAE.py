@@ -31,7 +31,8 @@ if __name__ == '__main__':
     parser.add_argument('--act-size', type=int, default=32, help='Size of activation vectors')
     parser.add_argument('--dict-size', type=int, default=1024, help='Size of the learned dictionary')
     parser.add_argument('--wandb-project', type=str, default='sparse_autoencoders', help='Weights & Biases project name')
-    parser.add_argument('--name', type=str, default='SpliceAI_WG_SAE', help='Name of the experiment')
+    parser.add_argument('--exp-name', type=str, default='SpliceAI_WG_SAE', help='Name of the experiment')
+    parser.add_argument('--overwite-name', type=str, default=None, help='Overwrite the experiment name')
     parser.add_argument('--input-unit-norm', action='store_true', help='Whether input embeddings are normalized to unit norm')
     parser.add_argument('--perf-log-freq', type=int, default=1000, help='Frequency of performance logging')
     parser.add_argument('--sae-type', type=str, default='topk', help='Type of sparse autoencoder (topk, vanilla, jumprelu, or batch_topk)')
@@ -91,8 +92,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cfg = get_cfg(**vars(args))
+    if args.overwite_name is not None:
+        cfg['name'] = args.overwite_name
     print('cfg - set')
     print(cfg)
+
 
     trainer = SAETraining(cfg)
     print('trainer - set')
