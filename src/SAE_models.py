@@ -109,6 +109,7 @@ class BaseAutoencoder(L.LightningModule):
 
     def __init__(self, cfg):
         super().__init__()
+        self.save_hyperparameters()
 
         self.cfg = cfg
         torch.manual_seed(self.cfg["seed"])
