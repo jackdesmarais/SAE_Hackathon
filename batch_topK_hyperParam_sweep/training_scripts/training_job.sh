@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --output=./logs/%x_qsub.sh.stout.%A.%a      # Output file
-#SBATCH --error=./logs/%x_qsub.sh.sterr.%A.%a      # Error file
+#SBATCH --output=./batch_topK_hyperParam_sweep/logs/%x_qsub.sh.stout.%A.%a      # Output file
+#SBATCH --error=./batch_topK_hyperParam_sweep/logs/%x_qsub.sh.sterr.%A.%a      # Error file
 #SBATCH --time=11:59:59             # Max time for the job (max 2 hours for the fast queue or 12 hours for the default queue)
 #SBATCH --mem=200G                   # Memory request
 #SBATCH --ntasks=1                  # The number of parallel tasks in the job
@@ -29,6 +29,7 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --top-k-aux ${topk_aux} \
                             --aux-penalty ${aux_penalty} \
                             --preload-data \
-                            --name "v1_batchtopk_HP_sweep"
+                            --name "v1_batchtopk_HP_sweep" \
+                            --outpath ./batch_topK_hyperParam_sweep/out/
 
                             
