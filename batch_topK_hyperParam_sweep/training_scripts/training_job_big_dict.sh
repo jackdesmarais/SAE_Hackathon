@@ -31,7 +31,7 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --preload-data \
                             --exp-name "v3_low_worker_batchtopk_HP_sweep" \
                             --overwite-name "SpliceAI_WG_Add_14_MB_3_out_topk${topk}_dict${dict_size}_topkaux${topk_aux}_auxpen${aux_penalty}" \
-                            --outpath ./batch_topK_hyperParam_sweep/out/V2/ \
+                            --outpath ./batch_topK_hyperParam_sweep/out/V3/ \
                             --num-workers 4
 
                             
