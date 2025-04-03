@@ -108,12 +108,12 @@ if __name__ == '__main__':
     ############################################################
 
     
-    train_ds = HDF3DIterator(cfg['train_data_path'], cfg['train_dataset_name'], preload=cfg['preload_data'])
+    train_ds = HDF3DIterator(cfg['train_data_path'], cfg['train_dataset_name'], preload=cfg['preload_data'], tensor_store=True)
     train_dl = torch.utils.data.dataloader.DataLoader(train_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'], shuffle=True)
-    val_ds = HDF3DIterator(cfg['val_data_path'], cfg['val_dataset_name'], preload=cfg['preload_data'])
+    val_ds = HDF3DIterator(cfg['val_data_path'], cfg['val_dataset_name'], preload=cfg['preload_data'], tensor_store=True)
     val_dl = torch.utils.data.dataloader.DataLoader(val_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'])
 
-    test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], preload=cfg['preload_data'])
+    test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], preload=cfg['preload_data'], tensor_store=True)
     test_dl = torch.utils.data.dataloader.DataLoader(test_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'])
     print('data - set')
 

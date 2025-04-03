@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-
+from torch import Tensor
 class HDF3DIterator:
     """Iterator class for accessing first two dimensions of a 3D HDF5 dataset.
     
@@ -14,7 +14,7 @@ class HDF3DIterator:
         current_idx (int): Current position in iteration
     """
     
-    def __init__(self, file_path, dataset_name, transform=None, preload=False):
+    def __init__(self, file_path, dataset_name, transform=None, preload=False, tensor_store=False):
         """Initialize the iterator.
         
         Args:
@@ -33,7 +33,7 @@ class HDF3DIterator:
         self.current_idx = 0
         self.preload = preload
         self.data = None
-
+        self.tensor_store = tensor_store
     def __len__(self):
         """Return the total number of items in first two dimensions."""
         return self.shape[0] * self.shape[1]
@@ -114,6 +114,8 @@ class HDF3DIterator:
         if self.preload:
             print(f'hdf_file - preloading')
             self.data = self.hdf_file[self.dataset_name][:,:,:]
+            if self.tensor_store:
+                self.data = Tensor(self.data).float()
             print(f'hdf_file - preloaded')
 
     def close(self):
