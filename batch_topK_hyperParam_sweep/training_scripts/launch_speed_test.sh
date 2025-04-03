@@ -1,5 +1,5 @@
 
-ks=(4 8 16 32)
+ks=(16)
 dict_sizes=(1024)
 topk_auxs=(16)
 
