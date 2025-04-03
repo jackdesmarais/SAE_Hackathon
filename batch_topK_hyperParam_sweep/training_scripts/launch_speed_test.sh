@@ -2,7 +2,7 @@
 ks=(16)
 dict_sizes=(1024)
 topk_auxs=(16)
-workers=(2 4 6 8 10 12 14 16)
+workers=(0 1 2 4 6 8 10 12 14 16)
 for k in ${ks[@]}; do
     for dict_size in ${dict_sizes[@]}; do
         for topk_aux in ${topk_auxs[@]}; do
