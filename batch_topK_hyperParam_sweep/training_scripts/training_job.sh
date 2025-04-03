@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --output=./batch_topK_hyperParam_sweep/logs/V5/%x_qsub.sh.stout.%A.%a      # Output file
-#SBATCH --error=./batch_topK_hyperParam_sweep/logs/V5/%x_qsub.sh.sterr.%A.%a      # Error file
+#SBATCH --output=./batch_topK_hyperParam_sweep/logs/V6/%x_qsub.sh.stout.%A.%a      # Output file
+#SBATCH --error=./batch_topK_hyperParam_sweep/logs/V6/%x_qsub.sh.sterr.%A.%a      # Error file
 #SBATCH --time=11:59:59             # Max time for the job (max 2 hours for the fast queue or 12 hours for the default queue)
 #SBATCH --mem=250G                   # Memory request
 #SBATCH --ntasks=1                  # The number of parallel tasks in the job
@@ -29,10 +29,10 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --n-batches-to-dead 5 \
                             --top-k-aux ${topk_aux} \
                             --aux-penalty ${aux_penalty} \
-                            --preload-data \
-                            --exp-name "v5_testing_mem_red_batchtopk_HP_sweep" \
+                            --exp-name "v6_testing_no_preload_batchtopk_HP_sweep" \
                             --overwite-name "SpliceAI_WG_Add_14_MB_3_out_topk${topk}_dict${dict_size}_topkaux${topk_aux}_auxpen${aux_penalty}" \
-                            --outpath ./batch_topK_hyperParam_sweep/out/V5/ \
-                            --num-workers ${workers}
+                            --outpath ./batch_topK_hyperParam_sweep/out/V6/ \
+                            --num-workers ${workers} #\
+                            # --preload-data
 
                             
