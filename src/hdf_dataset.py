@@ -78,14 +78,10 @@ class HDF3DIterator:
                 
             if self.data is not None:
                 x= self.data[i,j,:]
-            elif self.preload:
-                self.open()
-                x= self.data[i,j,:]
-            elif (self.hdf_file is None) and (not self.preload):
-                with self:
-                    x= self.hdf_file[self.dataset_name][i,j,:]
-            else:
+            elif self.hdf_file is not None:
                 x= self.hdf_file[self.dataset_name][i,j,:]
+            else:
+                raise ValueError("HDF5 file not opened")
             
             if self.transform is not None:
                 x = self.transform(x)
@@ -114,8 +110,11 @@ class HDF3DIterator:
 
     def open(self):
         self.hdf_file = h5py.File(self.file_path, 'r')
+        print(f'hdf_file - opened')
         if self.preload:
+            print(f'hdf_file - preloading')
             self.data = self.hdf_file[self.dataset_name][:,:,:]
+            print(f'hdf_file - preloaded')
 
     def close(self):
         self.hdf_file.close()
