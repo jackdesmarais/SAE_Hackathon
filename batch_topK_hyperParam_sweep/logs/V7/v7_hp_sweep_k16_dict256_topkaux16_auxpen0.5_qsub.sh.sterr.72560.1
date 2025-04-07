@@ -1,0 +1,39 @@
+[rank: 0] Seed set to 49
+wandb: Currently logged in as: jack-j-desmarais (jjd_academic) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+You are using a CUDA device ('NVIDIA H100 NVL') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+wandb: Using wandb-core as the SDK backend.  Please refer to https://wandb.me/wandb-core for more information.
+wandb: Tracking run with wandb version 0.19.6
+wandb: Run data is saved locally in ./wandb/run-20250404_155144-qm43cdve
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run iconic-donkey-322
+wandb: ⭐️ View project at https://wandb.ai/jjd_academic/sparse_autoencoders
+wandb: 🚀 View run at https://wandb.ai/jjd_academic/sparse_autoencoders/runs/qm43cdve
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+SLURM auto-requeueing enabled. Setting signal handlers.
+/grid/kinney/home/desmara/.conda/envs/architecture_search_env/lib/python3.11/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:213: You called `self.log('val_num_dead_features', ...)` in your `validation_step` but the value needs to be floating to be reduced. Converting it to torch.float32. You can silence this warning by converting the value to floating point yourself. If you don't intend to reduce the value (for instance when logging the global step or epoch) then you can use `self.logger.log_metrics({'val_num_dead_features': ...})` instead.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name         | Type | Params | Mode
+---------------------------------------------
+  | other params | n/a  | 16.7 K | n/a 
+---------------------------------------------
+16.7 K    Trainable params
+0         Non-trainable params
+16.7 K    Total params
+0.067     Total estimated model params size (MB)
+0         Modules in train mode
+0         Modules in eval mode
+SLURM auto-requeueing enabled. Setting signal handlers.
+/grid/kinney/home/desmara/.conda/envs/architecture_search_env/lib/python3.11/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:213: You called `self.log('train_num_dead_features', ...)` in your `training_step` but the value needs to be floating to be reduced. Converting it to torch.float32. You can silence this warning by converting the value to floating point yourself. If you don't intend to reduce the value (for instance when logging the global step or epoch) then you can use `self.logger.log_metrics({'train_num_dead_features': ...})` instead.
+Restoring states from the checkpoint path at /grid/kinney/home/desmara/MPSA_pred/SOTA_models/head_interpretation/SAE_Hackathon/batch_topK_hyperParam_sweep/out/V7/SpliceAI_WG_Add_14_MB_3_out_topk16_dict256_topkaux16_auxpen0.5_49_epoch=60_val_loss=5.56.ckpt
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loaded model weights from the checkpoint at /grid/kinney/home/desmara/MPSA_pred/SOTA_models/head_interpretation/SAE_Hackathon/batch_topK_hyperParam_sweep/out/V7/SpliceAI_WG_Add_14_MB_3_out_topk16_dict256_topkaux16_auxpen0.5_49_epoch=60_val_loss=5.56.ckpt
+SLURM auto-requeueing enabled. Setting signal handlers.
+Restoring states from the checkpoint path at /grid/kinney/home/desmara/MPSA_pred/SOTA_models/head_interpretation/SAE_Hackathon/batch_topK_hyperParam_sweep/out/V7/SpliceAI_WG_Add_14_MB_3_out_topk16_dict256_topkaux16_auxpen0.5_49_epoch=60_val_loss=5.56.ckpt
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loaded model weights from the checkpoint at /grid/kinney/home/desmara/MPSA_pred/SOTA_models/head_interpretation/SAE_Hackathon/batch_topK_hyperParam_sweep/out/V7/SpliceAI_WG_Add_14_MB_3_out_topk16_dict256_topkaux16_auxpen0.5_49_epoch=60_val_loss=5.56.ckpt
+SLURM auto-requeueing enabled. Setting signal handlers.
+/grid/kinney/home/desmara/.conda/envs/architecture_search_env/lib/python3.11/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:213: You called `self.log('test_num_dead_features', ...)` in your `test_step` but the value needs to be floating to be reduced. Converting it to torch.float32. You can silence this warning by converting the value to floating point yourself. If you don't intend to reduce the value (for instance when logging the global step or epoch) then you can use `self.logger.log_metrics({'test_num_dead_features': ...})` instead.
