@@ -180,8 +180,12 @@ class ChunkBatchSampler(torch.utils.data.Sampler):
                 raise ValueError("Chunks are not contiguous")
             if self.chunks[i][1] > self.chunks[i+1][0]:
                 raise ValueError("Chunks are overlapping")
+        #Check that the chunks cover the entire dataset
+        if (self.chunks[-1][1] != len(self.dataset))&(self.chunks[0][0] != 0):
+            raise ValueError("Chunks do not cover the entire dataset")
+        
         # check that the chunk lengths are multiple of the batch size
-        for chunk_start, chunk_end in self.chunks:
+        for chunk_start, chunk_end in self.chunks[:-1]:
             if (chunk_end - chunk_start) % self.batch_size != 0:
                 raise ValueError("Chunk length is not a multiple of the batch size")
             
