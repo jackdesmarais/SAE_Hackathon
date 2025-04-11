@@ -137,34 +137,6 @@ class HDF3DIterator:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    def split(self, ratio):
-        """Split the dataset into non overlapping datasets with the given ratio. Randomly assign each chunk to one of the datasets."""
-        
-        # iterate over the index of each chunk in the dataset
-        pos = 0
-        i=0
-        chunks = []
-        while pos < len(self) and i < len(self):
-            i = i+1
-            chunk_start, chunk_end = self._get_chunk_bounds(pos)
-            chunks.append((chunk_start, chunk_end))
-            pos = chunk_end+1
-
-        # randomly split the chunks into two datasets
-        np.random.shuffle(chunks)
-        split_idx = int(len(chunks) * ratio)
-        ds_chunks = chunks[:split_idx] 
-        ds_indices = []
-        for chunk_start, chunk_end in ds_chunks:
-            ds_indices.extend(range(chunk_start, chunk_end))
-        dataset1 =  torch.utils.data.Subset(self, ds_indices)
-        
-        ds_indices = []
-        for chunk_start, chunk_end in chunks[split_idx:]:
-            ds_indices.extend(range(chunk_start, chunk_end))
-        dataset2 = torch.utils.data.Subset(self, ds_indices)
-        
-        return dataset1, dataset2
         
 class ChunkBatchSampler(torch.utils.data.Sampler):
     """Sampler that returns batches of indices within the same chunk."""
