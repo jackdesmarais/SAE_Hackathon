@@ -1,4 +1,3 @@
-
 if __name__ == '__main__':
     ############################################################
     ################### 1. General setup #######################
@@ -15,7 +14,7 @@ if __name__ == '__main__':
     import json
     
     # SpliceAI specific imports
-    from hdf_dataset import HDF3DIterator
+    from hdf_dataset import HDF3DIterator, ChunkBatchSampler
     from SpliceAI import SpliceAI
 
 
@@ -84,6 +83,9 @@ if __name__ == '__main__':
     parser.add_argument('--hook-point', type=str, default='Add_14_MB_3_out', help='Hook point for SpliceAI model')
     parser.add_argument('--model-name', type=str, default='SpliceAI_WG', help='Name of the model')
     
+    # Add new argument for chunk size
+    parser.add_argument('--chunk-size', type=int, default=100000, help='Size of chunks for HDF dataset')
+
     ############################################################
     ################### 2. Training setup ######################
     ################### Not model specific #####################
@@ -108,13 +110,33 @@ if __name__ == '__main__':
     ############################################################
 
     
-    train_ds = HDF3DIterator(cfg['train_data_path'], cfg['train_dataset_name'], preload=cfg['preload_data'])
-    train_dl = torch.utils.data.dataloader.DataLoader(train_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'], shuffle=True)
-    val_ds = HDF3DIterator(cfg['val_data_path'], cfg['val_dataset_name'], preload=cfg['preload_data'])
-    val_dl = torch.utils.data.dataloader.DataLoader(val_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'])
+    # Create datasets with chunk size
+    train_ds = HDF3DIterator(cfg['train_data_path'], cfg['train_dataset_name'], 
+                            chunk_size=cfg['chunk_size'], preload=cfg['preload_data'])
 
-    test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], preload=cfg['preload_data'])
-    test_dl = torch.utils.data.dataloader.DataLoader(test_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'])
+    # Create train sampler that respects chunks
+    train_sampler = ChunkBatchSampler(train_ds, batch_size=cfg['batch_size'], 
+                                     shuffle=True, split_ratio=None, 
+                                     seed=cfg['seed'])
+    
+    # Create val dataset with chunk size
+    val_ds = HDF3DIterator(cfg['val_data_path'], cfg['val_dataset_name'], 
+                            chunk_size=cfg['chunk_size'], preload=cfg['preload_data'])
+    # Create val sampler that respects chunks
+    val_sampler = ChunkBatchSampler(val_ds, batch_size=cfg['batch_size'],
+                                   shuffle=False, split_ratio=None, seed=cfg['seed'])
+
+    # Create dataloaders with the chunk samplers
+    train_dl = torch.utils.data.DataLoader(train_ds, batch_sampler=train_sampler, 
+                                         num_workers=cfg['num_workers'])
+    val_dl = torch.utils.data.DataLoader(train_ds, batch_sampler=val_sampler,
+                                       num_workers=cfg['num_workers'])
+
+    # Test dataset uses regular batching since we don't need to split it
+    test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], 
+                           chunk_size=cfg['chunk_size'], preload=cfg['preload_data'])
+    test_dl = torch.utils.data.DataLoader(test_ds, batch_size=cfg['batch_size'],
+                                          shuffle=False, num_workers=cfg['num_workers'])
     print('data - set')
 
     ############################################################
