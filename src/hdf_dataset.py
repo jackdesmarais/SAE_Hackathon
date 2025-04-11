@@ -56,9 +56,6 @@ class HDF3DIterator:
     def _load_chunk(self, idx):
         """Load a new chunk of data into cache."""
         chunk_start, chunk_end = self._get_chunk_bounds(idx)
-        
-        if self.hdf_file is None:
-            self.hdf_file = h5py.File(self.file_path, 'r')
             
         # Convert flat indices to 2D coordinates
         start_i = chunk_start // self.shape[1]
@@ -142,11 +139,20 @@ class HDF3DIterator:
         self.cache_start_idx = None 
         self.cache_end_idx = None
 
+    def open(self):
+        """Open the HDF5 file."""
+        self.hdf_file = h5py.File(self.file_path, 'r')
+
     def __enter__(self):
+        self.open()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
+
+    def worker_init_fn(self, worker_id):
+        """Initialize worker."""
+        self.open()
 
         
 class ChunkBatchSampler(torch.utils.data.Sampler):

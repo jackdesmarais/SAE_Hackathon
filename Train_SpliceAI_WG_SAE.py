@@ -128,15 +128,18 @@ if __name__ == '__main__':
 
     # Create dataloaders with the chunk samplers
     train_dl = torch.utils.data.DataLoader(train_ds, batch_sampler=train_sampler, 
-                                         num_workers=cfg['num_workers'])
+                                         num_workers=cfg['num_workers'], 
+                                         worker_init_fn=train_ds.worker_init_fn)
     val_dl = torch.utils.data.DataLoader(train_ds, batch_sampler=val_sampler,
-                                       num_workers=cfg['num_workers'])
+                                       num_workers=cfg['num_workers'],
+                                       worker_init_fn=train_ds.worker_init_fn)
 
     # Test dataset uses regular batching since we don't need to split it
     test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], 
                            chunk_size=cfg['chunk_size'])
     test_dl = torch.utils.data.DataLoader(test_ds, batch_size=cfg['batch_size'],
-                                          shuffle=False, num_workers=cfg['num_workers'])
+                                          shuffle=False, num_workers=cfg['num_workers'],
+                                          worker_init_fn=test_ds.worker_init_fn)
     print('data - set')
 
     ############################################################
