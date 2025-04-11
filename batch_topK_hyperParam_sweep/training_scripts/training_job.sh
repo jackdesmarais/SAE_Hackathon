@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --output=./batch_topK_hyperParam_sweep/logs/V7/%x_qsub.sh.stout.%A.%a      # Output file
-#SBATCH --error=./batch_topK_hyperParam_sweep/logs/V7/%x_qsub.sh.sterr.%A.%a      # Error file
+#SBATCH --output=./batch_topK_hyperParam_sweep/logs/V8/%x_qsub.sh.stout.%A.%a      # Output file
+#SBATCH --error=./batch_topK_hyperParam_sweep/logs/V8/%x_qsub.sh.sterr.%A.%a      # Error file
 #SBATCH --time=11:59:59             # Max time for the job (max 2 hours for the fast queue or 12 hours for the default queue)
 #SBATCH --mem=250G                   # Memory request
 #SBATCH --ntasks=1                  # The number of parallel tasks in the job
@@ -25,14 +25,15 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --sae-type batch_topk \
                             --top-k ${topk} \
                             --dict-size ${dict_size} \
-                            --batch-size 2097152 \
+                            --batch-size 2095000 \
                             --n-batches-to-dead 5 \
                             --top-k-aux ${topk_aux} \
                             --aux-penalty ${aux_penalty} \
-                            --exp-name "v7_hp_sweepHP_sweep" \
+                            --exp-name "v8_chunk_caching_hp_sweep" \
                             --overwite-name "SpliceAI_WG_Add_14_MB_3_out_topk${topk}_dict${dict_size}_topkaux${topk_aux}_auxpen${aux_penalty}" \
-                            --outpath ./batch_topK_hyperParam_sweep/out/V7/ \
+                            --outpath ./batch_topK_hyperParam_sweep/out/V8/ \
                             --num-workers ${workers} \
+                            --chunk-size 20950000 \
                             --preload-data
 
                             
