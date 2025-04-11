@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import torch
+from math import ceil
 class HDF3DIterator:
     """Iterator class for accessing first two dimensions of a 3D HDF5 dataset with chunk caching."""
     
@@ -36,12 +37,18 @@ class HDF3DIterator:
 
     def _get_chunk_bounds(self, idx):
         """Calculate chunk boundaries for given index."""
+        if idx >= len(self):
+            raise IndexError("Index out of bounds")
+        if idx < 0:
+            raise IndexError("Index out of bounds")
+        
         # Round chunk_start down to start of row
         row_start = (idx) // self.shape[1]
-        chunk_start = max(0, row_start * self.shape[1])
+        chunk_start = row_start * self.shape[1]
+        
         
         # Round chunk_end up to end of row
-        row_end = (chunk_start + self.chunk_size + self.shape[1] - 1) // self.shape[1] 
+        row_end = ceil((chunk_start + self.chunk_size) / self.shape[1])
         chunk_end = min(len(self), row_end * self.shape[1])
 
         return chunk_start, chunk_end
@@ -66,7 +73,11 @@ class HDF3DIterator:
             raise ValueError(f"Chunk end not aligned to row boundary (end_j = {end_j})")
         
         # Load the chunk
-        self.cached_data = self.hdf_file[self.dataset_name][start_i:end_i+1, :, :]
+        self.cached_data = self.hdf_file[self.dataset_name][start_i:end_i, :, :]
+        
+        # Set cache boundaries
+        self.cache_start_idx = chunk_start
+        self.cache_end_idx = chunk_end
 
     def __getitem__(self, idx):
         """Get item at specified index with caching."""
