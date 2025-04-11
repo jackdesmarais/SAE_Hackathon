@@ -76,7 +76,7 @@ if __name__ == '__main__':
     parser.add_argument('--train-data-path', type=str, default='/grid/hackathon/data_norepl/splarseers/output/embed_train.h5', help='Path to SpliceAI embedding files')
     parser.add_argument('--val-data-path', type=str, default='/grid/hackathon/data_norepl/splarseers/output/embed_val.h5', help='Path to SpliceAI embedding files')
     parser.add_argument('--test-data-path', type=str, default='/grid/hackathon/data_norepl/splarseers/output/embed_test.h5', help='Path to SpliceAI embedding files')
-    parser.add_argument('--preload-data', action='store_true', help='Preload data into memory')
+    # parser.add_argument('--preload-data', action='store_true', help='Preload data into memory')
     parser.add_argument('--train-dataset-name', type=str, default='embed_train', help='Name of the dataset')
     parser.add_argument('--val-dataset-name', type=str, default='embed_val', help='Name of the dataset')
     parser.add_argument('--test-dataset-name', type=str, default='embed_test', help='Name of the dataset')
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     
     # Create datasets with chunk size
     train_ds = HDF3DIterator(cfg['train_data_path'], cfg['train_dataset_name'], 
-                            chunk_size=cfg['chunk_size'], preload=cfg['preload_data'])
+                            chunk_size=cfg['chunk_size'])
 
     # Create train sampler that respects chunks
     train_sampler = ChunkBatchSampler(train_ds, batch_size=cfg['batch_size'], 
@@ -121,7 +121,7 @@ if __name__ == '__main__':
     
     # Create val dataset with chunk size
     val_ds = HDF3DIterator(cfg['val_data_path'], cfg['val_dataset_name'], 
-                            chunk_size=cfg['chunk_size'], preload=cfg['preload_data'])
+                            chunk_size=cfg['chunk_size'])
     # Create val sampler that respects chunks
     val_sampler = ChunkBatchSampler(val_ds, batch_size=cfg['batch_size'],
                                    shuffle=False, split_ratio=None, seed=cfg['seed'])
@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
     # Test dataset uses regular batching since we don't need to split it
     test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], 
-                           chunk_size=cfg['chunk_size'], preload=cfg['preload_data'])
+                           chunk_size=cfg['chunk_size'])
     test_dl = torch.utils.data.DataLoader(test_ds, batch_size=cfg['batch_size'],
                                           shuffle=False, num_workers=cfg['num_workers'])
     print('data - set')

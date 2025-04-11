@@ -33,7 +33,5 @@ python ./Train_SpliceAI_WG_SAE.py --act-size 32 \
                             --overwite-name "SpliceAI_WG_Add_14_MB_3_out_topk${topk}_dict${dict_size}_topkaux${topk_aux}_auxpen${aux_penalty}" \
                             --outpath ./batch_topK_hyperParam_sweep/out/V8/ \
                             --num-workers ${workers} \
-                            --chunk-size 20950000 \
-                            --preload-data
-
+                            --chunk-size 20950000 
                             
