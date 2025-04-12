@@ -141,6 +141,7 @@ class HDF3DIterator:
 
     def open(self):
         """Open the HDF5 file."""
+        self.close()
         self.hdf_file = h5py.File(self.file_path, 'r')
 
     def __enter__(self):
@@ -152,6 +153,7 @@ class HDF3DIterator:
 
     def worker_init_fn(self, worker_id):
         """Initialize worker."""
+        self._worker_id = worker_id
         self.open()
 
         
