@@ -2,7 +2,9 @@ import h5py
 import numpy as np
 import torch
 from math import ceil
-class HDF3DIterator:
+
+
+class HDF3DDataset:
     """Iterator class for accessing first two dimensions of a 3D HDF5 dataset with chunk caching."""
     
     def __init__(self, file_path, dataset_name, transform=None, chunk_size=1000):
@@ -235,6 +237,131 @@ class ChunkBatchSampler(torch.utils.data.Sampler):
         
         
             
-
-
+class HDF3DIterableDataset(torch.utils.data.IterableDataset):
+    """Iterable dataset that distributes chunks across workers for HDF5 data."""
+    
+    def __init__(self, file_path, dataset_name, transform=None, chunk_size=1000, shuffle=True, seed=None):
+        """Initialize the dataset.
         
+        Args:
+            file_path (str): Path to the HDF5 file
+            dataset_name (str): Name of the dataset within the HDF5 file
+            transform: Optional transform to apply to data
+            chunk_size (int): Size of chunks to process
+            shuffle (bool): Whether to shuffle chunks
+            seed (int): Random seed for shuffling
+        """
+        self.file_path = file_path
+        self.dataset_name = dataset_name
+        self.transform = transform
+        self.chunk_size = chunk_size
+        self.shuffle = shuffle
+        self.seed = seed
+        
+        # Get dataset shape
+        with h5py.File(file_path, 'r') as f:
+            self.shape = f[dataset_name].shape
+            if len(self.shape) != 3:
+                raise ValueError("Dataset must be 3-dimensional")
+        
+        # Calculate chunk boundaries
+        self.chunks = []
+        pos = 0
+        while pos < self.shape[0] * self.shape[1]:
+            chunk_start = pos
+            # Round chunk_end up to end of row
+            row_end = ceil((chunk_start + chunk_size) / self.shape[1])
+            chunk_end = min(self.shape[0] * self.shape[1], row_end * self.shape[1])
+            self.chunks.append((chunk_start, chunk_end))
+            pos = chunk_end
+            
+        self.hdf_file = None
+        self.rng = None
+    
+    def _get_worker_chunks(self):
+        """Get chunks assigned to this worker."""
+        worker_info = torch.utils.data.get_worker_info()
+        
+        if worker_info is None:  # Single-process data loading
+            return range(len(self.chunks))
+            
+        # Divide chunks between workers
+        per_worker = int(ceil(len(self.chunks) / worker_info.num_workers))
+        worker_id = worker_info.id
+        start_idx = worker_id * per_worker
+        end_idx = min(start_idx + per_worker, len(self.chunks))
+        
+        return range(start_idx, end_idx)
+    
+    def __iter__(self):
+        """Return iterator over assigned chunks."""
+        # Initialize random state
+        worker_info = torch.utils.data.get_worker_info()
+        worker_id = 0 if worker_info is None else worker_info.id
+        self.rng = np.random.RandomState(self.seed + worker_id if self.seed is not None else None)
+        
+        self.open()
+        
+        # Shuffle chunks if requested
+        if self.shuffle:
+            self.rng.shuffle(self.worker_chunks)
+        
+        # Iterate through assigned chunks
+        for chunk_idx in self.worker_chunks:
+            chunk_start, chunk_end = self.chunks[chunk_idx]
+            
+            # Convert to 2D coordinates
+            start_i = chunk_start // self.shape[1]
+            end_i = chunk_end // self.shape[1]
+            
+            # Load chunk
+            chunk_data = self.hdf_file[self.dataset_name][start_i:end_i, :, :]
+            
+            # Generate indices within chunk
+            indices = np.arange(chunk_end - chunk_start)
+            if self.shuffle:
+                self.rng.shuffle(indices)
+            
+            # Yield items from chunk
+            for idx in indices:
+                rel_i = idx // self.shape[1]
+                rel_j = idx % self.shape[1]
+                x = chunk_data[rel_i, rel_j, :]
+                
+                if self.transform is not None:
+                    x = self.transform(x)
+                yield x
+    
+    def __len__(self):
+        """Return total length of dataset."""
+        return self.shape[0] * self.shape[1]
+    
+    def close(self):
+        """Close the HDF5 file."""
+        if self.hdf_file is not None:
+            self.hdf_file.close()
+            self.hdf_file = None
+
+        self.worker_chunks = None
+            
+    def open(self):
+        """Open the HDF5 file."""
+        self.close()
+        # Open file
+        self.hdf_file = h5py.File(self.file_path, 'r')
+        
+        # Get chunks for this worker
+        self.worker_chunks = list(self._get_worker_chunks())
+
+    def worker_init_fn(self, worker_id):
+        """Initialize worker."""
+        self._worker_id = worker_id
+        self.open()
+
+    
+    def __enter__(self):
+        self.open()
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
