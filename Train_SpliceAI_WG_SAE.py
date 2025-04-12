@@ -129,16 +129,19 @@ if __name__ == '__main__':
                                 shuffle=False)
 
     # Create dataloaders with the chunk samplers
+    persistent_workers = False
+    if cfg['num_workers'] > 0:
+        persistent_workers = True
     train_dl = torch.utils.data.DataLoader(train_ds, 
                                            batch_size=cfg['batch_size'], 
                                            num_workers=cfg['num_workers'], 
                                            worker_init_fn=train_ds.worker_init_fn,
-                                           persistent_workers=True)
+                                           persistent_workers=persistent_workers)
     val_dl = torch.utils.data.DataLoader(val_ds, 
                                         batch_size=cfg['batch_size'], 
                                         num_workers=cfg['num_workers'],
                                         worker_init_fn=val_ds.worker_init_fn,
-                                        persistent_workers=True)
+                                        persistent_workers=persistent_workers)
 
     # Test dataset uses regular batching since we don't need to split it
     test_ds = HDF3DIterableDataset(cfg['test_data_path'], 
@@ -151,7 +154,7 @@ if __name__ == '__main__':
                                           shuffle=False, 
                                           num_workers=cfg['num_workers'],
                                           worker_init_fn=test_ds.worker_init_fn,
-                                          persistent_workers=True)
+                                          persistent_workers=persistent_workers)
     print('data - set')
 
     ############################################################
