@@ -240,7 +240,8 @@ class ChunkBatchSampler(torch.utils.data.Sampler):
 class HDF3DIterableDataset(torch.utils.data.IterableDataset):
     """Iterable dataset that distributes chunks across workers for HDF5 data."""
     
-    def __init__(self, file_path, dataset_name, transform=None, chunk_size=1000, shuffle=True, seed=None):
+    def __init__(self, file_path, dataset_name, transform=None, 
+                 chunk_size=1000, adaptive_chunk_size_workers=None, shuffle=True, seed=None):
         """Initialize the dataset.
         
         Args:
@@ -254,7 +255,7 @@ class HDF3DIterableDataset(torch.utils.data.IterableDataset):
         self.file_path = file_path
         self.dataset_name = dataset_name
         self.transform = transform
-        self.chunk_size = chunk_size
+        self.adaptive_chunk_size_workers = adaptive_chunk_size_workers
         self.shuffle = shuffle
         self.seed = seed
         
@@ -263,6 +264,20 @@ class HDF3DIterableDataset(torch.utils.data.IterableDataset):
             self.shape = f[dataset_name].shape
             if len(self.shape) != 3:
                 raise ValueError("Dataset must be 3-dimensional")
+            
+        if not isinstance(self.adaptive_chunk_size_workers, int):
+            self.chunk_size = chunk_size
+        else:
+            #calculate the optimal chunk size for the training set
+            #the chunk size should be a multiple of the row size
+            #and should evenly divide the number of training samples
+            #into the number of workers
+            self.chunk_size = (self.shape[0] // self.adaptive_chunk_size_workers) * self.shape[1]
+            
+            #make sure the chunk size is not larger than the dataset
+            #and not larger than the maximum chunk size
+            self.chunk_size = min(min(self.chunk_size, chunk_size), self.shape[0] * self.shape[1])
+
         
         # Calculate chunk boundaries
         self.chunks = []
@@ -270,11 +285,13 @@ class HDF3DIterableDataset(torch.utils.data.IterableDataset):
         while pos < self.shape[0] * self.shape[1]:
             chunk_start = pos
             # Round chunk_end up to end of row
-            row_end = ceil((chunk_start + chunk_size) / self.shape[1])
+            row_end = ceil((chunk_start + self.chunk_size) / self.shape[1])
             chunk_end = min(self.shape[0] * self.shape[1], row_end * self.shape[1])
             self.chunks.append((chunk_start, chunk_end))
             pos = chunk_end
             
+        self.chunk_size = self.chunks[0][1] - self.chunks[0][0]
+        
         self.hdf_file = None
         self.rng = None
     
