@@ -258,6 +258,7 @@ class HDF3DIterableDataset(torch.utils.data.IterableDataset):
         self.adaptive_chunk_size_workers = adaptive_chunk_size_workers
         self.shuffle = shuffle
         self.seed = seed
+        self.iter_idx = 0
         
         # Get dataset shape
         with h5py.File(file_path, 'r') as f:
@@ -315,8 +316,8 @@ class HDF3DIterableDataset(torch.utils.data.IterableDataset):
         # Initialize random state
         worker_info = torch.utils.data.get_worker_info()
         worker_id = 0 if worker_info is None else worker_info.id
-        self.rng = np.random.RandomState(self.seed + worker_id if self.seed is not None else None)
-        
+        self.rng = np.random.default_rng(self.seed*100+self.iter_idx*10 + worker_id if self.seed is not None else None)
+        self.iter_idx += 1
         self.open()
         
         # Shuffle chunks if requested
