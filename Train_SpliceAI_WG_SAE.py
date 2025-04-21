@@ -1,4 +1,3 @@
-
 if __name__ == '__main__':
     ############################################################
     ################### 1. General setup #######################
@@ -15,7 +14,7 @@ if __name__ == '__main__':
     import json
     
     # SpliceAI specific imports
-    from hdf_dataset import HDF3DIterator
+    from hdf_dataset import HDF3DIterableDataset
     from SpliceAI import SpliceAI
 
 
@@ -31,7 +30,8 @@ if __name__ == '__main__':
     parser.add_argument('--act-size', type=int, default=32, help='Size of activation vectors')
     parser.add_argument('--dict-size', type=int, default=1024, help='Size of the learned dictionary')
     parser.add_argument('--wandb-project', type=str, default='sparse_autoencoders', help='Weights & Biases project name')
-    parser.add_argument('--name', type=str, default='SpliceAI_WG_SAE', help='Name of the experiment')
+    parser.add_argument('--exp-name', type=str, default='SpliceAI_WG_SAE', help='Name of the experiment')
+    parser.add_argument('--overwite-name', type=str, default=None, help='Overwrite the experiment name')
     parser.add_argument('--input-unit-norm', action='store_true', help='Whether input embeddings are normalized to unit norm')
     parser.add_argument('--perf-log-freq', type=int, default=1000, help='Frequency of performance logging')
     parser.add_argument('--sae-type', type=str, default='topk', help='Type of sparse autoencoder (topk, vanilla, jumprelu, or batch_topk)')
@@ -76,13 +76,16 @@ if __name__ == '__main__':
     parser.add_argument('--train-data-path', type=str, default='/grid/hackathon/data_norepl/splarseers/output/embed_train.h5', help='Path to SpliceAI embedding files')
     parser.add_argument('--val-data-path', type=str, default='/grid/hackathon/data_norepl/splarseers/output/embed_val.h5', help='Path to SpliceAI embedding files')
     parser.add_argument('--test-data-path', type=str, default='/grid/hackathon/data_norepl/splarseers/output/embed_test.h5', help='Path to SpliceAI embedding files')
-    parser.add_argument('--preload-data', action='store_true', help='Preload data into memory')
+    # parser.add_argument('--preload-data', action='store_true', help='Preload data into memory')
     parser.add_argument('--train-dataset-name', type=str, default='embed_train', help='Name of the dataset')
     parser.add_argument('--val-dataset-name', type=str, default='embed_val', help='Name of the dataset')
     parser.add_argument('--test-dataset-name', type=str, default='embed_test', help='Name of the dataset')
     parser.add_argument('--hook-point', type=str, default='Add_14_MB_3_out', help='Hook point for SpliceAI model')
     parser.add_argument('--model-name', type=str, default='SpliceAI_WG', help='Name of the model')
     
+    # Add new argument for chunk size
+    parser.add_argument('--chunk-size', type=int, default=100000, help='Size of chunks for HDF dataset')
+
     ############################################################
     ################### 2. Training setup ######################
     ################### Not model specific #####################
@@ -91,8 +94,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     cfg = get_cfg(**vars(args))
+    if args.overwite_name is not None:
+        cfg['name'] = args.overwite_name
     print('cfg - set')
     print(cfg)
+
 
     trainer = SAETraining(cfg)
     print('trainer - set')
@@ -102,15 +108,53 @@ if __name__ == '__main__':
     ################### 3. Data setup ##########################
     ################### Model specific #########################
     ############################################################
-
+    # def worker_init_fn(worker_id):
+    #     worker_info = torch.utils.data.get_worker_info()
+    #     if worker_info is not None:
+    #         dataset = worker_info.dataset
+    #         dataset.worker_init_fn(worker_id)
     
-    train_ds = HDF3DIterator(cfg['train_data_path'], cfg['train_dataset_name'], preload=cfg['preload_data'])
-    train_dl = torch.utils.data.dataloader.DataLoader(train_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'], shuffle=True)
-    val_ds = HDF3DIterator(cfg['val_data_path'], cfg['val_dataset_name'], preload=cfg['preload_data'])
-    val_dl = torch.utils.data.dataloader.DataLoader(val_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'])
+    # Create datasets with chunk size
+    train_ds = HDF3DIterableDataset(cfg['train_data_path'], 
+                                    cfg['train_dataset_name'], 
+                                    chunk_size=cfg['chunk_size'],
+                                    seed=cfg['seed'],
+                                    shuffle=True)
+    
+    # Create val dataset with chunk size
+    val_ds = HDF3DIterableDataset(cfg['val_data_path'], 
+                                cfg['val_dataset_name'], 
+                                chunk_size=cfg['chunk_size'],
+                                seed=cfg['seed'],
+                                shuffle=False)
 
-    test_ds = HDF3DIterator(cfg['test_data_path'], cfg['test_dataset_name'], preload=cfg['preload_data'])
-    test_dl = torch.utils.data.dataloader.DataLoader(test_ds, batch_size=cfg['batch_size'], num_workers=cfg['num_workers'])
+    # Create dataloaders with the chunk samplers
+    persistent_workers = False
+    if cfg['num_workers'] > 0:
+        persistent_workers = True
+    train_dl = torch.utils.data.DataLoader(train_ds, 
+                                           batch_size=cfg['batch_size'], 
+                                           num_workers=cfg['num_workers'], 
+                                           worker_init_fn=train_ds.worker_init_fn,
+                                           persistent_workers=persistent_workers)
+    val_dl = torch.utils.data.DataLoader(val_ds, 
+                                        batch_size=cfg['batch_size'], 
+                                        num_workers=cfg['num_workers'],
+                                        worker_init_fn=val_ds.worker_init_fn,
+                                        persistent_workers=persistent_workers)
+
+    # Test dataset uses regular batching since we don't need to split it
+    test_ds = HDF3DIterableDataset(cfg['test_data_path'], 
+                                   cfg['test_dataset_name'], 
+                                   chunk_size=cfg['chunk_size'],
+                                   seed=cfg['seed'],
+                                   shuffle=False)
+    test_dl = torch.utils.data.DataLoader(test_ds, 
+                                          batch_size=cfg['batch_size'],
+                                          shuffle=False, 
+                                          num_workers=cfg['num_workers'],
+                                          worker_init_fn=test_ds.worker_init_fn,
+                                          persistent_workers=persistent_workers)
     print('data - set')
 
     ############################################################
@@ -136,9 +180,8 @@ if __name__ == '__main__':
     ################### Not Model specific #####################
     ############################################################
 
-    with train_ds, val_ds:
-        print('training - starting')
-        final_model = trainer.train(model, train_dl, val_dl)
+    print('training - starting')
+    final_model = trainer.train(model, train_dl, val_dl)
     print('training - done')
 
     ############################################################
@@ -146,9 +189,8 @@ if __name__ == '__main__':
     ################### Not Model specific #####################
     ############################################################
 
-    with val_ds:
-        print('validation - starting')
-        val_metrics = trainer.validate(val_dl)
+    print('validation - starting')
+    val_metrics = trainer.validate(val_dl)
     print('validation - done')
 
     print(val_metrics)
