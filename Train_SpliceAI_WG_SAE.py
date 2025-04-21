@@ -108,16 +108,12 @@ if __name__ == '__main__':
     ################### 3. Data setup ##########################
     ################### Model specific #########################
     ############################################################
-    # def worker_init_fn(worker_id):
-    #     worker_info = torch.utils.data.get_worker_info()
-    #     if worker_info is not None:
-    #         dataset = worker_info.dataset
-    #         dataset.worker_init_fn(worker_id)
-    
+
     # Create datasets with chunk size
     train_ds = HDF3DIterableDataset(cfg['train_data_path'], 
                                     cfg['train_dataset_name'], 
                                     chunk_size=cfg['chunk_size'],
+                                    adaptive_chunk_size_workers=cfg['num_workers'],
                                     seed=cfg['seed'],
                                     shuffle=True)
     
@@ -125,6 +121,7 @@ if __name__ == '__main__':
     val_ds = HDF3DIterableDataset(cfg['val_data_path'], 
                                 cfg['val_dataset_name'], 
                                 chunk_size=cfg['chunk_size'],
+                                adaptive_chunk_size_workers=cfg['num_workers'],
                                 seed=cfg['seed'],
                                 shuffle=False)
 
@@ -132,6 +129,7 @@ if __name__ == '__main__':
     persistent_workers = False
     if cfg['num_workers'] > 0:
         persistent_workers = True
+    
     train_dl = torch.utils.data.DataLoader(train_ds, 
                                            batch_size=cfg['batch_size'], 
                                            num_workers=cfg['num_workers'], 
@@ -147,6 +145,7 @@ if __name__ == '__main__':
     test_ds = HDF3DIterableDataset(cfg['test_data_path'], 
                                    cfg['test_dataset_name'], 
                                    chunk_size=cfg['chunk_size'],
+                                   adaptive_chunk_size_workers=cfg['num_workers'],
                                    seed=cfg['seed'],
                                    shuffle=False)
     test_dl = torch.utils.data.DataLoader(test_ds, 
